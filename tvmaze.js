@@ -2,6 +2,7 @@
 
 const $showsList = $("#showsList");
 const $episodesArea = $("#episodesArea");
+const $episodesList = $('#episodesList');
 const $searchForm = $("#searchForm");
 
 
@@ -22,6 +23,12 @@ async function getShowsByTerm( term ) {
     q: term
   }}); 
 
+  // Populate an array [shows] with objects that contain data about the shows
+  // id - The ID of the show in the API
+  // name - The name of the show
+  // summary - A summary of the show
+  // image - If available, original image URL of the show
+  //       - If no image, populate with tv-missing image from tinyurl
   for( let res of showRes.data ) {
     try {      
       shows.push({
@@ -90,13 +97,51 @@ $searchForm.on("submit", async function (evt) {
   await searchForShowAndDisplay();
 });
 
-
 /** Given a show ID, get from API and return (promise) array of episodes:
  *      { id, name, season, number }
  */
 
-// async function getEpisodesOfShow(id) { }
+async function getEpisodesOfShow(id) {  
+  const epiRes = await axios.get(`https://api.tvmaze.com/shows/${id}/episodes`);
 
-/** Write a clear docstring for this function... */
+  let episodes = [];
 
-// function populateEpisodes(episodes) { }
+  for( let res of epiRes.data ) {
+    try {      
+      episodes.push({
+        id: res.id,
+        name: res.name,
+        season: res.season,
+        episode: res.number,
+        summary: res.summary
+      });
+    } catch(e) {
+      console.log(e);
+    }
+  }
+  return episodes;
+}
+
+/** Given list of episodes, create markup for each and to DOM */
+
+function populateEpisodes(episodes) { 
+  $episodesList.empty();
+  $episodesArea.show();
+
+  for( let ep of episodes ) {
+    const $episodes = $(
+      `<li>${ep.name} - Season ${ep.season}, Number ${ep.episode}</li>`   
+    );
+    $episodesList.append($episodes);     
+  }
+}
+
+const $episodeBtn = $('#episodebtn');
+
+// This is handled by jQuery event delegation, allowing the on() function
+// to work after the button is created by the above function populateShows()
+$showsList.on("click", "button", async function(evt) {
+  evt.preventDefault();
+  const episodeRes = await getEpisodesOfShow(($(this).parents("div.Show").data().showId));
+  populateEpisodes(episodeRes);
+});
